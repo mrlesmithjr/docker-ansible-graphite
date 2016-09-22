@@ -1,0 +1,17 @@
+version: '2'
+services:
+  graphite:
+    image: "mrlesmithjr/graphite"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "2003:2003"
+      - "2003:2003/udp"
+      - "2004:2004"
+      - "7002:7002"
+    restart: "always"
+    volumes:
+      - "graphite:/var/lib/graphite/whisper"
+
+volumes:
+  graphite:

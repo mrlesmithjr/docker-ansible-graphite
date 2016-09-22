@@ -1,0 +1,46 @@
+---
+- hosts: localhost
+  become: true
+  connection: local
+  vars:
+  roles:
+  tasks:
+    - name: Updating Apt-Cache
+      apt:
+        update_cache: yes
+
+    - name: Installing Graphite
+      apt:
+        name: "{{ item }}"
+        state: "present"
+        install_recommends: no
+      with_items:
+        - graphite-web
+        - graphite-carbon
+        - libapache2-mod-wsgi
+
+    - name: Removing Apache2 Default Site
+      file:
+        path: "/etc/apache2/sites-enabled/000-default.conf"
+        state: "absent"
+
+    - name: Adding Graphite Apache2 Config
+      file:
+        src: "/usr/share/graphite-web/apache2-graphite.conf"
+        dest: "/etc/apache2/sites-enabled/apache2-graphite.conf"
+        state: "link"
+
+    - name: Initializing Graphite DB
+      command: "python /usr/lib/python2.7/dist-packages/graphite/manage.py syncdb --noinput"
+
+    - name: Changing Graphite DB Permissions
+      file:
+        path: "/var/lib/graphite/graphite.db"
+        owner: "_graphite"
+        group: "_graphite"
+
+    - name: Configuring Carbon Cache
+      replace:
+        dest: "/etc/default/graphite-carbon"
+        regexp: "CARBON_CACHE_ENABLED=false"
+        replace: "CARBON_CACHE_ENABLED=true"

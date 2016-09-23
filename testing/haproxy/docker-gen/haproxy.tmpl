@@ -1,0 +1,67 @@
+userlist STATSUSERS
+    group admin users admin
+    user admin insecure-password admin
+
+listen stats
+    bind *:9090
+    mode http
+    stats enable
+    stats refresh 60s
+    stats uri /
+    acl AuthOkay_ReadOnly http_auth(STATSUSERS)
+    acl AuthOkay_Admin http_auth_group(STATSUSERS) admin
+    stats http-request auth realm stats unless AuthOkay_ReadOnly
+
+frontend apache-{{ .Env.APACHE_FRONTEND_PORT }}
+    mode tcp
+    bind *:{{ .Env.APACHE_FRONTEND_PORT }}
+    default_backend {{ .Env.APACHE_BACKEND }}-80
+
+backend {{ .Env.APACHE_BACKEND }}-80
+
+    balance {{ .Env.BALANCE }}
+    # Backend {{ .Env.APACHE_BACKEND }}
+    # Backend PORT 80
+
+    {{ range $label, $containers := groupByLabel $ "com.docker.compose.service" }}
+    {{ if eq $label $.Env.APACHE_BACKEND }}
+
+    {{ range $index, $value := $containers }}
+    {{ with $project := index $value.Labels "com.docker.compose.project" }}
+    {{ if eq $project $.Env.PROJECT }}
+    {{ $network := index $value.Networks 0 }}
+    server {{$value.Name}} {{ $network.IP }}:80 check
+    {{ end }}
+    {{ end }}
+    {{ end }}
+
+    {{ end }}
+
+    {{ end }}
+
+frontend nginx-{{ .Env.NGINX_FRONTEND_PORT }}
+    mode tcp
+    bind *:{{ .Env.NGINX_FRONTEND_PORT }}
+    default_backend {{ .Env.NGINX_BACKEND }}-80
+
+backend {{ .Env.NGINX_BACKEND }}-80
+
+    balance {{ .Env.BALANCE }}
+    # Backend {{ .Env.NGINX_BACKEND }}
+    # Backend PORT 80
+
+    {{ range $label, $containers := groupByLabel $ "com.docker.compose.service" }}
+    {{ if eq $label $.Env.NGINX_BACKEND }}
+
+    {{ range $index, $value := $containers }}
+    {{ with $project := index $value.Labels "com.docker.compose.project" }}
+    {{ if eq $project $.Env.PROJECT }}
+    {{ $network := index $value.Networks 0 }}
+    server {{$value.Name}} {{ $network.IP }}:80 check
+    {{ end }}
+    {{ end }}
+    {{ end }}
+
+    {{ end }}
+
+    {{ end }}

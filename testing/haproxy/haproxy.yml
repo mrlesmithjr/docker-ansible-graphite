@@ -1,0 +1,58 @@
+---
+- hosts: localhost
+  become: true
+  vars:
+    - docker_gen_install_dir: '/usr/local/bin'
+    - docker_gen_file: 'docker-gen-linux-amd64-{{ docker_gen_ver }}.tar.gz'
+    - docker_gen_url: 'https://github.com/jwilder/docker-gen/releases/download'
+    - docker_gen_ver: '0.7.3'
+  roles:
+  tasks:
+    - name: Ensuring /app/docker-entrypoint.sh Is Executable
+      file:
+        path: "/app/docker-entrypoint.sh"
+        mode: 0755
+
+    - name: Ensuring /var/run/haproxy.pid Exists
+      stat:
+        path: "/var/run/haproxy.pid"
+      register: "haproxy_pid"
+      changed_when: false
+
+    - name: Creating /var/run/haproxy.pid If It Does Not Exist
+      file:
+        path: "/var/run/haproxy.pid"
+        state: "touch"
+      when: not haproxy_pid.stat.exists
+
+    - name: Updating APK Cache
+      apk:
+        update_cache: yes
+      when: ansible_os_family == "Alpine"
+
+    - name: Installing CA-Certs
+      apk:
+        name: "ca-certificates"
+      when: ansible_os_family == "Alpine"
+
+    - name: Installing Tar
+      apk:
+        name: "tar"
+        state: "present"
+      when: ansible_os_family == "Alpine"
+
+    - name: Downloading docker-gen {{ docker_gen_ver }} Archive
+      get_url:
+        url: "{{ docker_gen_url }}/{{ docker_gen_ver }}/{{ docker_gen_file }}"
+        dest: "/tmp/{{ docker_gen_file }}"
+
+    - name: Extracting docker-gen {{ docker_gen_ver }} Archive
+      unarchive:
+        src: "/tmp/{{ docker_gen_file }}"
+        dest: "{{ docker_gen_install_dir }}"
+        copy: no
+
+    - name: Removing docker-gen {{ docker_gen_ver }} Archive
+      file:
+        path: "/tmp/{{ docker_gen_file }}"
+        state: "absent"

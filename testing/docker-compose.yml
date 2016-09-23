@@ -1,0 +1,60 @@
+version: '2'
+services:
+  haproxy:
+    build: "haproxy/"
+    image: "collectd-haproxy"
+    links:
+      - "apache"
+      - "nginx"
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "9090:9090"
+    restart: "always"
+    environment:
+      APACHE_BACKEND: "apache"
+      APACHE_FRONTEND_PORT: "8000"
+      BALANCE: "roundrobin"
+      NGINX_BACKEND: "nginx"
+      NGINX_FRONTEND_PORT: "8001"
+      PROJECT: "testing"
+      SERVICE: "haproxy"
+    volumes:
+      - "/var/run/docker.sock:/tmp/docker.sock:ro"
+
+  graphite:
+    image: "mrlesmithjr/graphite"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "2003:2003"
+      - "2003:2003/udp"
+      - "2004:2004"
+      - "7002:7002"
+    restart: "always"
+    volumes:
+      - "graphite:/var/lib/graphite/whisper"
+
+  collectd:
+    build: "./"
+    image: "alpine-collectd"
+    links:
+      - "graphite"
+    restart: "always"
+
+  apache:
+    build: "apache2/"
+    image: "collectd-apache2"
+    links:
+      - "graphite"
+    restart: "always"
+
+  nginx:
+    build: "nginx/"
+    image: "collectd-nginx"
+    links:
+      - "graphite"
+    restart: "always"
+
+volumes:
+  graphite:
